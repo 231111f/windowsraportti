@@ -1,33 +1,52 @@
-# Windows System Report
+# Ladataan systeminfo.ps1 (sisältää Get-SystemInfo funktion)
+. .\systeminfo.ps1
 
+# Päivämäärä tiedoston nimeen
 $date = Get-Date -Format "yyyy-MM-dd_HH-mm"
+
+# Raportin tallennus työpöydälle
 $report = "$env:USERPROFILE\Desktop\WindowsReport_$date.txt"
+
+# ===============================
+# REPORT HEADER
+# ===============================
 
 "===== WINDOWS SYSTEM REPORT =====" | Out-File $report
 "Created: $(Get-Date)" | Out-File $report -Append
 "" | Out-File $report -Append
 
-# --- System Information ---
+# ===============================
+# SYSTEM INFORMATION
+# ===============================
+
 "--- System Information ---" | Out-File $report -Append
 
-$os = Get-CimInstance Win32_OperatingSystem
-$cpu = Get-CimInstance Win32_Processor
-$gpu = Get-CimInstance Win32_VideoController
+$info = Get-SystemInfo
 
-"Computer Name: $env:COMPUTERNAME" | Out-File $report -Append
-"Windows Version: $($os.Caption)" | Out-File $report -Append
-"Total RAM (GB): $([math]::Round($os.TotalVisibleMemorySize/1MB,2))" | Out-File $report -Append
-"CPU: $($cpu.Name)" | Out-File $report -Append
-"CPU Cores: $($cpu.NumberOfCores)" | Out-File $report -Append
-"GPU: $($gpu.Name)" | Out-File $report -Append
+"Computer Name: $($info.ComputerName)" | Out-File $report -Append
+"Windows Version: $($info.WindowsVersion)" | Out-File $report -Append
+"Total RAM (GB): $($info.RAM)" | Out-File $report -Append
+"CPU: $($info.CPU)" | Out-File $report -Append
+"CPU Cores: $($info.Cores)" | Out-File $report -Append
+"GPU: $($info.GPU)" | Out-File $report -Append
 "" | Out-File $report -Append
 
-# --- Local Users ---
+# ===============================
+# LOCAL USERS
+# ===============================
+
 "--- Local Users ---" | Out-File $report -Append
-Get-LocalUser | Select Name, Enabled | Out-File $report -Append
+
+Get-LocalUser |
+Select Name, Enabled |
+Out-File $report -Append
+
 "" | Out-File $report -Append
 
-# --- Disk Space (C:) ---
+# ===============================
+# DISK SPACE (C:)
+# ===============================
+
 "--- Disk Space (C:) ---" | Out-File $report -Append
 
 $disk = Get-PSDrive C
@@ -39,17 +58,29 @@ $totalGB = [math]::Round(($disk.Used + $disk.Free) / 1GB, 2)
 "Total Space (GB): $totalGB" | Out-File $report -Append
 "Used Space (GB): $usedGB" | Out-File $report -Append
 "Free Space (GB): $freeGB" | Out-File $report -Append
+
 "" | Out-File $report -Append
 
+# ===============================
+# TOP PROCESSES
+# ===============================
 
-# --- Top 3 Processes (Memory Usage) ---
-"--- Top Processes ---" | Out-File $report -Append
+"--- Top Processes (Memory Usage) ---" | Out-File $report -Append
+
 Get-Process |
 Sort-Object WorkingSet -Descending |
-Select-Object -First 3 Name, @{Name="Memory(MB)";Expression={[math]::Round($_.WorkingSet/1MB,2)}} |
+Select-Object -First 3 Name,
+@{Name="Memory(MB)";Expression={[math]::Round($_.WorkingSet/1MB,2)}} |
 Out-File $report -Append
+
 "" | Out-File $report -Append
+
+# ===============================
+# REPORT END
+# ===============================
 
 "===== END OF REPORT =====" | Out-File $report -Append
 
-Write-Host "Report saved to Desktop."
+Write-Host "Raportti tallennettu." 
+
+
