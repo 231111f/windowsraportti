@@ -29,8 +29,18 @@ Get-LocalUser | Select Name, Enabled | Out-File $report -Append
 
 # --- Disk Space (C:) ---
 "--- Disk Space (C:) ---" | Out-File $report -Append
-Get-PSDrive C | Select Used, Free | Out-File $report -Append
+
+$disk = Get-PSDrive C
+
+$usedGB = [math]::Round($disk.Used / 1GB, 2)
+$freeGB = [math]::Round($disk.Free / 1GB, 2)
+$totalGB = [math]::Round(($disk.Used + $disk.Free) / 1GB, 2)
+
+"Total Space (GB): $totalGB" | Out-File $report -Append
+"Used Space (GB): $usedGB" | Out-File $report -Append
+"Free Space (GB): $freeGB" | Out-File $report -Append
 "" | Out-File $report -Append
+
 
 # --- Top 3 Processes (Memory Usage) ---
 "--- Top Processes ---" | Out-File $report -Append
