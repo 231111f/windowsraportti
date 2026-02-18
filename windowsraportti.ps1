@@ -1,28 +1,30 @@
-# Ladataan systeminfo.ps1 (sisältää Get-SystemInfo funktion)
+﻿
+# Ladataan systeminfo.ps1, joka sisältää Get-SystemInfo -funktion
+# Dot sourcing tekee funktion käyttöön tässä skriptissä
 . .\systeminfo.ps1
 
-# Päivämäärä tiedoston nimeen
+
+# Haetaan nykyinen päivämäärä ja kellonaika tiedoston nimeä varten
 $date = Get-Date -Format "yyyy-MM-dd_HH-mm"
 
-# Raportin tallennus työpöydälle
+
+# Määritellään raportin tallennuspolku (käyttäjän työpöytä)
 $report = "$env:USERPROFILE\Desktop\WindowsReport_$date.txt"
 
-# ===============================
-# REPORT HEADER
-# ===============================
 
+# Luodaan raportin alku ja kirjoitetaan otsikko tiedostoon
 "===== WINDOWS SYSTEM REPORT =====" | Out-File $report
 "Created: $(Get-Date)" | Out-File $report -Append
 "" | Out-File $report -Append
 
-# ===============================
-# SYSTEM INFORMATION
-# ===============================
 
+# Kirjoitetaan järjestelmätiedot
 "--- System Information ---" | Out-File $report -Append
 
+# Kutsutaan Get-SystemInfo -funktiota
 $info = Get-SystemInfo
 
+# Lisätään haetut tiedot raporttiin
 "Computer Name: $($info.ComputerName)" | Out-File $report -Append
 "Windows Version: $($info.WindowsVersion)" | Out-File $report -Append
 "Total RAM (GB): $($info.RAM)" | Out-File $report -Append
@@ -31,10 +33,8 @@ $info = Get-SystemInfo
 "GPU: $($info.GPU)" | Out-File $report -Append
 "" | Out-File $report -Append
 
-# ===============================
-# LOCAL USERS
-# ===============================
 
+# Haetaan paikalliset käyttäjät ja heidän Enabled-tilansa
 "--- Local Users ---" | Out-File $report -Append
 
 Get-LocalUser |
@@ -43,28 +43,26 @@ Out-File $report -Append
 
 "" | Out-File $report -Append
 
-# ===============================
-# DISK SPACE (C:)
-# ===============================
 
+# Haetaan C-aseman levytila
 "--- Disk Space (C:) ---" | Out-File $report -Append
 
 $disk = Get-PSDrive C
 
-$usedGB = [math]::Round($disk.Used / 1GB, 2)
-$freeGB = [math]::Round($disk.Free / 1GB, 2)
+# Muutetaan tavut gigatavuiksi ja pyöristetään
+$usedGB  = [math]::Round($disk.Used / 1GB, 2)
+$freeGB  = [math]::Round($disk.Free / 1GB, 2)
 $totalGB = [math]::Round(($disk.Used + $disk.Free) / 1GB, 2)
 
+# Kirjoitetaan levytilat raporttiin
 "Total Space (GB): $totalGB" | Out-File $report -Append
 "Used Space (GB): $usedGB" | Out-File $report -Append
 "Free Space (GB): $freeGB" | Out-File $report -Append
 
 "" | Out-File $report -Append
 
-# ===============================
-# TOP PROCESSES
-# ===============================
 
+# Haetaan kolme eniten muistia käyttävää prosessia
 "--- Top Processes (Memory Usage) ---" | Out-File $report -Append
 
 Get-Process |
@@ -75,12 +73,10 @@ Out-File $report -Append
 
 "" | Out-File $report -Append
 
-# ===============================
-# REPORT END
-# ===============================
 
+# Lisätään raportin lopetusmerkintä
 "===== END OF REPORT =====" | Out-File $report -Append
 
-Write-Host "Raportti tallennettu." 
 
-
+# Ilmoitus käyttäjälle, että raportti on luotu
+Write-Host "Raportti tallennettu työpöydälle."
