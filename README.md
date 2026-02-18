@@ -1,4 +1,4 @@
-# Windows System Report Script
+# Windows Systeemi raportti skripti
 
 ## Tarkoitus
 
