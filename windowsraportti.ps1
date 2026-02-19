@@ -130,7 +130,7 @@ try {
     "===== END OF REPORT =====" | Out-File $ReportPath -Append
 
     # Ilmoitus käyttäjälle että raportti luotiin onnistuneesti
-    Write-Host "Raportti luotu: $ReportPath"
+    Write-Host "Raportti luotu työpöydälle: $ReportPath"
 }
 catch {
     # Jos koko raportin luonti epäonnistuu, näytetään virheilmoitus
