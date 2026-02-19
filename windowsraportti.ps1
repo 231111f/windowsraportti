@@ -1,82 +1,140 @@
 ﻿
-# Ladataan systeminfo.ps1, joka sisältää Get-SystemInfo -funktion
-# Dot sourcing tekee funktion käyttöön tässä skriptissä
+param(
+    # Käyttäjä voi määrittää raportin tallennuspolun.
+    # Jos ei määritä, raportti tallennetaan työpöydälle.
+    [string]$ReportPath = "$env:USERPROFILE\Desktop\WindowsReport_$(Get-Date -Format 'yyyy-MM-dd_HH-mm').txt"
+)
+
+# Ladataan systeminfo.ps1, jotta Get-SystemInfo -funktio on käytettävissä
 . .\systeminfo.ps1
 
 
-# Haetaan nykyinen päivämäärä ja kellonaika tiedoston nimeä varten
-$date = Get-Date -Format "yyyy-MM-dd_HH-mm"
+function Write-Section {
+    param([string]$Title)
+
+    try {
+        # Kirjoittaa osio-otsikon raporttiin
+        "=== $Title ===" | Out-File $ReportPath -Append
+    }
+    catch {
+        # Jos kirjoittaminen epäonnistuu, näytetään varoitus
+        Write-Warning "Otsikon kirjoittaminen epäonnistui: $Title"
+    }
+}
 
 
-# Määritellään raportin tallennuspolku (käyttäjän työpöytä)
-$report = "$env:USERPROFILE\Desktop\WindowsReport_$date.txt"
+function Get-DiskInfo {
+    try {
+        # Hakee C-aseman tiedot
+        $disk = Get-PSDrive C -ErrorAction Stop
+
+        # Palauttaa levytilat gigatavuina
+        return [PSCustomObject]@{
+            TotalGB = [math]::Round(($disk.Used + $disk.Free) / 1GB, 2)
+            UsedGB  = [math]::Round($disk.Used / 1GB, 2)
+            FreeGB  = [math]::Round($disk.Free / 1GB, 2)
+        }
+    }
+    catch {
+        # Jos haku epäonnistuu, palautetaan null ja näytetään varoitus
+        Write-Warning "Levytilan hakeminen epäonnistui."
+        return $null
+    }
+}
 
 
-# Luodaan raportin alku ja kirjoitetaan otsikko tiedostoon
-"===== WINDOWS SYSTEM REPORT =====" | Out-File $report
-"Created: $(Get-Date)" | Out-File $report -Append
-"" | Out-File $report -Append
+function Get-TopProcesses {
+    try {
+        # Hakee käynnissä olevat prosessit,
+        # lajittelee ne muistinkäytön mukaan
+        # ja valitsee 3 eniten muistia käyttävää
+        return Get-Process -ErrorAction Stop |
+        Sort-Object WorkingSet -Descending |
+        Select-Object -First 3 Name,
+        @{Name="Memory(MB)";Expression={[math]::Round($_.WorkingSet/1MB,2)}}
+    }
+    catch {
+        Write-Warning "Prosessien hakeminen epäonnistui."
+        return $null
+    }
+}
 
 
-# Kirjoitetaan järjestelmätiedot
-"--- System Information ---" | Out-File $report -Append
-
-# Kutsutaan Get-SystemInfo -funktiota
-$info = Get-SystemInfo
-
-# Lisätään haetut tiedot raporttiin
-"Computer Name: $($info.ComputerName)" | Out-File $report -Append
-"Windows Version: $($info.WindowsVersion)" | Out-File $report -Append
-"Total RAM (GB): $($info.RAM)" | Out-File $report -Append
-"CPU: $($info.CPU)" | Out-File $report -Append
-"CPU Cores: $($info.Cores)" | Out-File $report -Append
-"GPU: $($info.GPU)" | Out-File $report -Append
-"" | Out-File $report -Append
+function Get-LocalUsersInfo {
+    try {
+        # Hakee paikalliset käyttäjät ja heidän Enabled-tilansa
+        return Get-LocalUser -ErrorAction Stop |
+        Select Name, Enabled
+    }
+    catch {
+        Write-Warning "Käyttäjien hakeminen epäonnistui."
+        return $null
+    }
+}
 
 
-# Haetaan paikalliset käyttäjät ja heidän Enabled-tilansa
-"--- Local Users ---" | Out-File $report -Append
+try {
 
-Get-LocalUser |
-Select Name, Enabled |
-Out-File $report -Append
+    # Luodaan uusi raporttitiedosto ja kirjoitetaan otsikko
+    "===== WINDOWS SYSTEM REPORT =====" | Out-File $ReportPath
+    "Created: $(Get-Date)" | Out-File $ReportPath -Append
+    "" | Out-File $ReportPath -Append
 
-"" | Out-File $report -Append
+    # Haetaan järjestelmätiedot systeminfo.ps1-funktiosta
+    Write-Section "System Information"
+    $system = Get-SystemInfo
+
+    # Tarkistetaan että tiedot saatiin ennen kirjoittamista
+    if ($system) {
+        "Computer Name: $($system.ComputerName)" | Out-File $ReportPath -Append
+        "Windows Version: $($system.WindowsVersion)" | Out-File $ReportPath -Append
+        "Total RAM (GB): $($system.RAM)" | Out-File $ReportPath -Append
+        "CPU: $($system.CPU)" | Out-File $ReportPath -Append
+        "CPU Cores: $($system.Cores)" | Out-File $ReportPath -Append
+        "GPU: $($system.GPU)" | Out-File $ReportPath -Append
+    }
+
+    "" | Out-File $ReportPath -Append
+
+    # Haetaan paikalliset käyttäjät
+    Write-Section "Local Users"
+    $users = Get-LocalUsersInfo
+
+    if ($users) {
+        $users | Out-File $ReportPath -Append
+    }
+
+    "" | Out-File $ReportPath -Append
+
+    # Haetaan levytilat
+    Write-Section "Disk Space (C:)"
+    $disk = Get-DiskInfo
+
+    if ($disk) {
+        "Total Space (GB): $($disk.TotalGB)" | Out-File $ReportPath -Append
+        "Used Space (GB): $($disk.UsedGB)" | Out-File $ReportPath -Append
+        "Free Space (GB): $($disk.FreeGB)" | Out-File $ReportPath -Append
+    }
+
+    "" | Out-File $ReportPath -Append
+
+    # Haetaan kolme eniten muistia käyttävää prosessia
+    Write-Section "Top Processes"
+    $procs = Get-TopProcesses
+
+    if ($procs) {
+        $procs | Out-File $ReportPath -Append
+    }
+
+    "" | Out-File $ReportPath -Append
+    "===== END OF REPORT =====" | Out-File $ReportPath -Append
+
+    # Ilmoitus käyttäjälle että raportti luotiin onnistuneesti
+    Write-Host "Raportti luotu: $ReportPath"
+}
+catch {
+    # Jos koko raportin luonti epäonnistuu, näytetään virheilmoitus
+    Write-Error "Raportin luonti epäonnistui: $_"
+}
 
 
-# Haetaan C-aseman levytila
-"--- Disk Space (C:) ---" | Out-File $report -Append
-
-$disk = Get-PSDrive C
-
-# Muutetaan tavut gigatavuiksi ja pyöristetään
-$usedGB  = [math]::Round($disk.Used / 1GB, 2)
-$freeGB  = [math]::Round($disk.Free / 1GB, 2)
-$totalGB = [math]::Round(($disk.Used + $disk.Free) / 1GB, 2)
-
-# Kirjoitetaan levytilat raporttiin
-"Total Space (GB): $totalGB" | Out-File $report -Append
-"Used Space (GB): $usedGB" | Out-File $report -Append
-"Free Space (GB): $freeGB" | Out-File $report -Append
-
-"" | Out-File $report -Append
-
-
-# Haetaan kolme eniten muistia käyttävää prosessia
-"--- Top Processes (Memory Usage) ---" | Out-File $report -Append
-
-Get-Process |
-Sort-Object WorkingSet -Descending |
-Select-Object -First 3 Name,
-@{Name="Memory(MB)";Expression={[math]::Round($_.WorkingSet/1MB,2)}} |
-Out-File $report -Append
-
-"" | Out-File $report -Append
-
-
-# Lisätään raportin lopetusmerkintä
-"===== END OF REPORT =====" | Out-File $report -Append
-
-
-# Ilmoitus käyttäjälle, että raportti on luotu
-Write-Host "Raportti tallennettu työpöydälle."
